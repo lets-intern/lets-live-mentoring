@@ -9,10 +9,3 @@ export const sessions = [
   { id: "S-1021", date: "2026-11-09 21:00", mentor: "오세진", mentee: "한유진", topic: "개발자 커리어", status: "노쇼" as SessionStatus },
   { id: "S-1020", date: "2026-11-08 18:00", mentor: "박민지", mentee: "윤재민", topic: "자소서 첨삭", status: "취소" as SessionStatus },
 ];
-
-export const mentees = [
-  { id: "U-301", name: "이서연", email: "seoyeon@example.com", joined: "2026-10-28", sessions: 2 },
-  { id: "U-302", name: "최도윤", email: "doyun@example.com", joined: "2026-11-01", sessions: 1 },
-  { id: "U-303", name: "정하은", email: "haeun@example.com", joined: "2026-10-15", sessions: 3 },
-  { id: "U-304", name: "한유진", email: "yujin@example.com", joined: "2026-11-03", sessions: 1 },
-];

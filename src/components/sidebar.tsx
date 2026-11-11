@@ -24,12 +24,6 @@ const NAV: NavItem[] = [
     icon: "users",
     children: [{ href: "/mentors", label: "멘토 DB" }],
   },
-  {
-    type: "group",
-    label: "멘티 관리",
-    icon: "user",
-    children: [{ href: "/mentees", label: "멘티 목록" }],
-  },
   { type: "link", href: "/settings", label: "설정", icon: "settings" },
 ];
 
