@@ -33,6 +33,8 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 
 const BADGE: Record<string, string> = {
   예정: "bg-blue-50 text-blue-700",
+  "진행 중": "bg-emerald-50 text-emerald-700",
+  종료: "bg-zinc-100 text-zinc-500",
   완료: "bg-emerald-50 text-emerald-700",
   취소: "bg-zinc-100 text-zinc-500",
   노쇼: "bg-red-50 text-red-700",
