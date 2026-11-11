@@ -124,21 +124,22 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate, logoutActio
               </li>
             );
           })}
-
-          <li>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                title={collapsed ? "로그아웃" : undefined}
-                className={`${rowBase} text-zinc-700 hover:bg-zinc-100`}
-              >
-                <Icon name="logout" />
-                <span className={hideWhenCollapsed}>로그아웃</span>
-              </button>
-            </form>
-          </li>
         </ul>
       </nav>
+
+      {/* 하단 고정: 로그아웃 */}
+      <div className="shrink-0 border-t border-zinc-200 px-2 py-3">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            title={collapsed ? "로그아웃" : undefined}
+            className={`${rowBase} text-zinc-700 hover:bg-zinc-100`}
+          >
+            <Icon name="logout" />
+            <span className={hideWhenCollapsed}>로그아웃</span>
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }
