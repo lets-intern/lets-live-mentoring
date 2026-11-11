@@ -16,7 +16,19 @@ const NAV: NavItem[] = [
     type: "group",
     label: "멘토링 운영",
     icon: "calendar",
-    children: [{ href: "/sessions", label: "멘토링 세션" }],
+    children: [
+      { href: "/sessions", label: "멘토링 세션" },
+      { href: "/slots", label: "슬롯 오픈" },
+    ],
+  },
+  {
+    type: "group",
+    label: "마케팅 집행",
+    icon: "megaphone",
+    children: [
+      { href: "/marketing/matching", label: "공고&멘토 매칭" },
+      { href: "/marketing/promotions", label: "프로모션 관리" },
+    ],
   },
   {
     type: "group",
