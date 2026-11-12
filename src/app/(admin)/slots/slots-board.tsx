@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { bookingCutoff, isBookable } from "@/lib/slot-time";
 import type { Slot } from "@/lib/slots";
 
 type View = "schedule" | "matrix" | "list";
@@ -35,16 +36,6 @@ const DARK = [0x82, 0x88, 0xf8];
 const cellColor = (ratio: number) =>
   `rgb(${LIGHT.map((l, i) => Math.round(l + (DARK[i] - l) * Math.min(1, Math.max(0, ratio)))).join(", ")})`;
 
-/** 예약은 슬롯 시작 24시간 전에 마감된다. */
-const BOOKING_CUTOFF_HOURS = 24;
-
-/** KST "YYYY-MM-DD HH:mm" 에 시간을 더한다. 시간대 변환 없이 문자열 그대로 계산한다. */
-const addHours = (at: string, hours: number) =>
-  new Date(Date.parse(`${at.replace(" ", "T")}:00Z`) + hours * 3_600_000)
-    .toISOString()
-    .slice(0, 16)
-    .replace("T", " ");
-
 const percent = (part: number, total: number) =>
   total === 0 ? 0 : Math.round((part / total) * 100);
 
@@ -60,10 +51,10 @@ export function SlotsBoard({ slots, now }: Props) {
   // 아직 예약을 받을 수 있는(시작까지 24시간 넘게 남은) 빈 슬롯이 그날 딱 1개 남은 멘토.
   // 상태 필터와 상관없이 전체 슬롯으로 판단한다.
   const closingSoon = useMemo(() => {
-    const cutoff = addHours(now, BOOKING_CUTOFF_HOURS);
+    const cutoff = bookingCutoff(now);
     const open = new Map<string, number>();
     for (const s of slots) {
-      if (s.booked || `${s.date} ${s.start}` <= cutoff) continue;
+      if (!isBookable(s, cutoff)) continue;
       const key = `${s.date}|${s.mentorName}`;
       open.set(key, (open.get(key) ?? 0) + s.slotCount);
     }
