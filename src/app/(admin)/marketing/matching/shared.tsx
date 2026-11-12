@@ -15,9 +15,14 @@ export function PoolNotice({ pool }: { pool: CandidatePool }) {
   if (pool.mentorDbWarning) {
     return (
       <Notice>
-        멘토 DB를 불러오지 못해 회사·직무 점수를 계산할 수 없습니다. 지금은 집중 판매 여부만 반영됩니다. (
+        멘토 DB를 불러오지 못해 회사·직무 점수를 계산할 수 없습니다. 지금은 집중 판매·슬롯 오픈 여부만 반영됩니다. (
         {pool.mentorDbWarning})
       </Notice>
+    );
+  }
+  if (pool.slotWarning) {
+    return (
+      <Notice>슬롯 현황을 불러오지 못해 슬롯 오픈 가점 없이 추천합니다. ({pool.slotWarning})</Notice>
     );
   }
   return null;

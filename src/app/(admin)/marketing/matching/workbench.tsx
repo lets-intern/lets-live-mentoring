@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import type { Matching } from "@/lib/matching/data";
 import { parsePostings } from "@/lib/matching/parse";
 import { MAX_RAW_TEXT } from "@/lib/matching/limits";
-import { isFocusOnly, rankMentors, rankOverall, type OverallMentor, type CandidateMentor, type MatchingSettings, type ScoredMentor } from "@/lib/matching/score";
+import { isBonusOnly, rankMentors, rankOverall, type OverallMentor, type CandidateMentor, type MatchingSettings, type ScoredMentor } from "@/lib/matching/score";
 import { deleteMatching, saveMatching } from "./actions";
 
 const inputClass =
@@ -112,6 +112,7 @@ export function MatchingWorkbench({ candidates, settings, knownCompanies, initia
   };
 
   const focusCount = candidates.filter((c) => c.isFocus).length;
+  const openSlotCount = candidates.filter((c) => c.openSlots > 0).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,7 +143,7 @@ export function MatchingWorkbench({ candidates, settings, knownCompanies, initia
             {postings.length > 0 ? "다시 나누고 추천받기" : "공고 나누고 추천받기"}
           </button>
           <p className="text-xs text-zinc-500">
-            후보: 진행 중 프로모션 소개 멘토 {candidates.length}명 (집중 판매 {focusCount}명) · 공고별 {settings.recommendCount}명 추천
+            후보: 진행 중 프로모션 소개 멘토 {candidates.length}명 (집중 판매 {focusCount}명 · 슬롯 오픈 {openSlotCount}명) · 공고별 {settings.recommendCount}명 추천
           </p>
         </div>
       </section>
@@ -339,6 +340,7 @@ function PostingCard({
             {addable.map((m) => (
               <option key={m.mentorId} value={m.mentorId}>
                 {m.mentorName} · {m.score}점{candidateById.get(m.mentorId)?.isFocus ? " · ★집중" : ""}
+                {candidateById.get(m.mentorId)?.openSlots ? " · 슬롯 오픈" : ""}
               </option>
             ))}
           </select>
@@ -424,9 +426,17 @@ function MentorRow({
           <span className="font-medium text-zinc-900">{mentor.mentorName}</span>
           {topNote && <span className="text-xs text-zinc-500">({topNote})</span>}
           {candidate?.detail && <span className="text-xs text-zinc-500">{candidate.detail}</span>}
+          {candidate && candidate.openSlots > 0 && (
+            <span
+              title="아직 예약받을 수 있는(시작 24시간 전 마감 전) 빈 슬롯 수"
+              className="rounded-full border border-[#7177F7] bg-[#F0F1FE] px-2 py-0.5 text-xs font-medium text-[#4D55F5]"
+            >
+              슬롯 오픈 {candidate.openSlots}개
+            </span>
+          )}
           {candidate && !candidate.inMentorDb && <span className="text-xs text-amber-700">멘토 DB에 없음</span>}
           {!candidate && <span className="text-xs text-zinc-400">현재 후보 아님 (저장 당시 값)</span>}
-          {isFocusOnly(mentor) && <span className="text-xs text-amber-700">회사·직무 일치 없음</span>}
+          {isBonusOnly(mentor) && <span className="text-xs text-amber-700">회사·직무 일치 없음</span>}
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1">
           {mentor.reasons.map((r) => (

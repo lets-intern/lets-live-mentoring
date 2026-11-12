@@ -20,6 +20,7 @@ const GROUP_NOTE: Record<string, string> = {
   role: "직무 일치 — 셋 중 가장 높은 점수 하나만 반영",
   desired: "추가 가점",
   focus: "추가 가점",
+  slot: "추가 가점 — 슬롯을 연 멘토를 우선 추천",
 };
 
 export function MatchingSettingsForm({ settings }: { settings: MatchingSettings }) {

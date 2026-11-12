@@ -1,6 +1,8 @@
 import "server-only";
 import { fetchMentors } from "@/lib/lets-operation";
 import { listPromotions, promotionStatus, todayKst, type Result } from "@/lib/promotions";
+import { bookingCutoff, isBookable } from "@/lib/slot-time";
+import { fetchSlots } from "@/lib/slots";
 import { getSupabase, SUPABASE_NOT_CONFIGURED } from "@/lib/supabase";
 import { DEFAULT_SETTINGS, parseSettings, type CandidateMentor, type MatchingSettings, type ScoredMentor } from "./score";
 
@@ -22,6 +24,8 @@ export type CandidatePool = {
   activePromotions: { id: string; title: string }[];
   /** 멘토 DB 를 못 불러왔을 때 경고 (후보는 이름·집중 판매만으로 계산) */
   mentorDbWarning?: string;
+  /** 슬롯 현황(Redash)을 못 불러왔을 때 경고 (슬롯 오픈 가점 없이 계산) */
+  slotWarning?: string;
   /** 회사명 추출 보조용: 멘토 DB 전체의 회사명 */
   knownCompanies: string[];
 };
@@ -29,10 +33,25 @@ export type CandidatePool = {
 /**
  * 추천 후보 = 진행 중인 모든 프로모션의 소개 멘토(중복 제거).
  * 멘토 DB 에서 비활성인 멘토는 뺀다.
+ * 슬롯 현황은 멘토 ID 가 없어 본명(또는 활동명 = 슬롯의 닉네임)으로 잇는다.
  */
 export async function loadCandidatePool(): Promise<Result<CandidatePool>> {
-  const [promotions, mentors] = await Promise.all([listPromotions(), fetchMentors()]);
+  const [promotions, mentors, slots] = await Promise.all([listPromotions(), fetchMentors(), fetchSlots()]);
   if (!promotions.ok) return promotions;
+
+  // 이름 → 아직 예약받을 수 있는 빈 슬롯 수
+  const openByName = new Map<string, number>();
+  if (slots.ok) {
+    const cutoff = bookingCutoff(slots.now);
+    for (const s of slots.slots) {
+      if (!isBookable(s, cutoff)) continue;
+      for (const name of new Set([s.mentorName, s.mentorNickname])) {
+        if (name) openByName.set(name, (openByName.get(name) ?? 0) + s.slotCount);
+      }
+    }
+  }
+  const openSlotsOf = (...names: (string | null | undefined)[]) =>
+    Math.max(0, ...names.map((n) => (n ? openByName.get(n.trim()) ?? 0 : 0)));
 
   const today = todayKst();
   const active = promotions.data.filter((p) => promotionStatus(p, today) === "진행 중");
@@ -64,6 +83,7 @@ export async function loadCandidatePool(): Promise<Result<CandidatePool>> {
         isFocus: pm.isFocus,
         promotions: [{ id: p.id, title: p.title, isFocus: pm.isFocus }],
         inMentorDb: Boolean(m),
+        openSlots: m ? openSlotsOf(m.realName, m.activityName) : openSlotsOf(pm.mentorName),
       });
     }
   }
@@ -83,6 +103,7 @@ export async function loadCandidatePool(): Promise<Result<CandidatePool>> {
       candidates: [...byId.values()],
       activePromotions: active.map((p) => ({ id: p.id, title: p.title })),
       mentorDbWarning: mentors.ok ? undefined : mentors.message,
+      slotWarning: slots.ok ? undefined : slots.message,
       knownCompanies: [...knownCompanies],
     },
   };

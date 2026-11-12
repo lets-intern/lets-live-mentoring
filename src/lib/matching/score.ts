@@ -10,6 +10,7 @@ export type MatchingWeights = {
   passRole: number;
   desiredRole: number;
   focus: number;
+  openSlot: number;
 };
 
 export type MatchingSettings = {
@@ -27,6 +28,8 @@ export const DEFAULT_SETTINGS: MatchingSettings = {
     passRole: 10,
     desiredRole: 15,
     focus: 25,
+    // 슬롯을 연 멘토는 바로 예약으로 이어질 수 있어 다른 항목보다 크게 준다.
+    openSlot: 100,
   },
   recommendCount: 2,
 };
@@ -37,7 +40,7 @@ export const RECOMMEND_COUNT_MIN = 1;
 export const RECOMMEND_COUNT_MAX = 5;
 
 /** 설정 화면·추천 근거에 쓰는 항목 이름. 묶음(group) 안에서는 가장 높은 점수 하나만 반영한다. */
-export const WEIGHT_FIELDS: { key: keyof MatchingWeights; label: string; source: string; group: "company" | "role" | "desired" | "focus" }[] = [
+export const WEIGHT_FIELDS: { key: keyof MatchingWeights; label: string; source: string; group: "company" | "role" | "desired" | "focus" | "slot" }[] = [
   { key: "currentCompany", label: "현직 회사 일치", source: "멘토 DB 재직 기업", group: "company" },
   { key: "careerCompany", label: "경력 회사 일치", source: "멘토 DB 경력 사항의 회사", group: "company" },
   { key: "passCompany", label: "서류 합격 회사 일치", source: "멘토 DB 서류 합격 이력의 회사", group: "company" },
@@ -46,6 +49,7 @@ export const WEIGHT_FIELDS: { key: keyof MatchingWeights; label: string; source:
   { key: "passRole", label: "서류 합격 직무 일치", source: "멘토 DB 서류 합격 이력의 직무", group: "role" },
   { key: "desiredRole", label: "멘토링 희망 직무 일치", source: "멘토 DB 멘토링 희망 직무", group: "desired" },
   { key: "focus", label: "집중 판매 멘토", source: "진행 중 프로모션의 집중 판매 표시", group: "focus" },
+  { key: "openSlot", label: "슬롯 오픈 멘토", source: "슬롯 오픈의 예약 가능 슬롯(예약 마감 전) 보유", group: "slot" },
 ];
 
 const LABEL = Object.fromEntries(WEIGHT_FIELDS.map((f) => [f.key, f.label])) as Record<keyof MatchingWeights, string>;
@@ -62,7 +66,9 @@ export type CandidateMentor = {
   documentPasses: { company: string | null; jobRole: string | null }[];
   isFocus: boolean; // 진행 중 프로모션 중 하나라도 집중 판매로 표시
   promotions: { id: string; title: string; isFocus: boolean }[];
-  inMentorDb: boolean; // 멘토 DB 에서 못 찾으면 false (점수는 집중 판매만 반영)
+  inMentorDb: boolean; // 멘토 DB 에서 못 찾으면 false (점수는 집중 판매·슬롯 오픈만 반영)
+  /** 아직 예약받을 수 있는(시작 24시간 전 마감 전) 빈 슬롯 수. 1개 이상이면 슬롯 오픈 가점. */
+  openSlots: number;
 };
 
 export type ScoredMentor = {
@@ -128,6 +134,7 @@ export function scoreMentor(posting: PostingKey, mentor: CandidateMentor, weight
 
   if (roleMatches(posting.jobRole, mentor.desiredJobRoles)) picked.push({ key: "desiredRole", points: weights.desiredRole });
   if (mentor.isFocus) picked.push({ key: "focus", points: weights.focus });
+  if (mentor.openSlots > 0) picked.push({ key: "openSlot", points: weights.openSlot });
 
   const counted = picked.filter((h) => h.points > 0);
   return {
@@ -138,8 +145,12 @@ export function scoreMentor(posting: PostingKey, mentor: CandidateMentor, weight
   };
 }
 
-/** 근거가 집중 판매 가점뿐인지 (회사·직무가 하나도 안 맞음) */
-export const isFocusOnly = (m: ScoredMentor) => m.reasons.length > 0 && m.reasons.every((r) => r.startsWith(LABEL.focus));
+/** 공고와 상관없이 붙는 가점. 이것만으로는 "회사·직무가 맞았다"고 보지 않는다. */
+const BONUS_LABELS = [LABEL.focus, LABEL.openSlot];
+
+/** 근거가 집중 판매·슬롯 오픈 가점뿐인지 (회사·직무가 하나도 안 맞음) */
+export const isBonusOnly = (m: ScoredMentor) =>
+  m.reasons.length > 0 && m.reasons.every((r) => BONUS_LABELS.some((label) => r.startsWith(label)));
 
 /** 점수 높은 순. 같으면 집중 판매 멘토 먼저, 그다음 이름순. */
 export function rankMentors(posting: PostingKey, candidates: CandidateMentor[], weights: MatchingWeights) {
@@ -165,8 +176,8 @@ export type OverallMentor = {
 
 /**
  * 메시지 전체에서 1명만 추천할 때의 순위.
- * 공고별 점수를 더하되, 회사·직무가 하나도 안 맞는 공고(집중 판매 가점뿐)는 빼서
- * 공고가 많을수록 집중 판매 멘토가 저절로 1위가 되는 것을 막는다.
+ * 공고별 점수를 더하되, 회사·직무가 하나도 안 맞는 공고(집중 판매·슬롯 오픈 가점뿐)는 빼서
+ * 공고가 많을수록 가점 멘토가 저절로 1위가 되는 것을 막는다.
  * 같으면 맞은 공고 수 → 집중 판매 → 이름순.
  */
 export function rankOverall(rankedPerPosting: ScoredMentor[][], candidates: CandidateMentor[]): OverallMentor[] {
@@ -174,7 +185,7 @@ export function rankOverall(rankedPerPosting: ScoredMentor[][], candidates: Cand
   const byId = new Map<string, OverallMentor>();
   rankedPerPosting.forEach((list, idx) => {
     for (const m of list) {
-      if (m.score <= 0 || isFocusOnly(m)) continue;
+      if (m.score <= 0 || isBonusOnly(m)) continue;
       const e = byId.get(m.mentorId) ?? { mentorId: m.mentorId, mentorName: m.mentorName, total: 0, postingNumbers: [] };
       e.total += m.score;
       e.postingNumbers.push(idx + 1);
