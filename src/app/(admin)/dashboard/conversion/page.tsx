@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BarList, formatTime, Kpi, LoadError, pct, Section, won } from "@/components/dashboard";
+import { StepFlow } from "@/components/step-flow";
 import { Card, PageHeader } from "@/components/ui";
-import { fetchConversionDashboard, type Group, type Purchase } from "@/lib/conversion";
+import {
+  fetchConversionDashboard,
+  type FlowSegment,
+  type Group,
+  type JourneySegment,
+  type JourneySummary,
+  type Purchase,
+} from "@/lib/conversion";
 
 export const metadata: Metadata = { title: "전환 관리" };
 
@@ -10,7 +19,13 @@ export const dynamic = "force-dynamic";
 
 const TOP_CAMPAIGNS = 10;
 
-export default async function ConversionDashboardPage() {
+export default async function ConversionDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ flow?: string }>;
+}) {
+  const { flow: flowParam } = await searchParams;
+  const flow: FlowSegment = flowParam === "paid" || flowParam === "free" ? flowParam : "all";
   const d = await fetchConversionDashboard();
 
   return (
@@ -71,6 +86,8 @@ export default async function ConversionDashboardPage() {
               </Card>
             </Section>
           </div>
+
+          <JourneySection journey={d.journey} flow={flow} />
 
           <Section title="최근 결제" description={`최근 ${d.recent.length}건. 결제자 정보는 표시하지 않습니다.`}>
             <RecentTable rows={d.recent} />
@@ -146,7 +163,17 @@ function Matrix({ channels, paths, counts }: { channels: string[]; paths: string
 }
 
 function RecentTable({ rows }: { rows: Purchase[] }) {
-  const headers = ["결제 일시", "프로그램", "금액", "유입채널", "유입경로 (source / medium)", "캠페인", "사이트 내 경로", "결제 직전 페이지"];
+  const headers = [
+    "결제 일시",
+    "프로그램",
+    "금액",
+    "유입채널",
+    "유입경로 (source / medium)",
+    "캠페인",
+    "사이트 내 경로",
+    "결제 전 탐색",
+    "결제 직전 페이지",
+  ];
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
       <table className="w-full text-left text-sm">
@@ -177,9 +204,120 @@ function RecentTable({ rows }: { rows: Purchase[] }) {
               <td className="whitespace-nowrap px-4 py-3 text-zinc-500">{p.route}</td>
               <td className="whitespace-nowrap px-4 py-3 text-zinc-500">{p.campaign ?? "—"}</td>
               <td className="whitespace-nowrap px-4 py-3 text-zinc-700">{p.sitePath}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-zinc-700" title={p.journey?.path ?? ""}>
+                {p.journey && p.journey.sessions > 0
+                  ? `${p.journey.visitDays}일 · ${p.journey.sessions}세션 · 상세 ${p.journey.distinctDetails}개`
+                  : "—"}
+              </td>
               <td className="max-w-48 truncate px-4 py-3 text-zinc-500" title={p.lastPage ?? ""}>
                 {p.lastPage ?? "—"}
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const fmt = (v: number | null, unit: string, digits = 0) =>
+  v === null ? "—" : `${v.toLocaleString("ko-KR", { maximumFractionDigits: digits })}${unit}`;
+
+const share = (count: number, n: number) => `${count}건 (${pct(count, n)})`;
+
+const FLOW_TABS: { key: FlowSegment; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "paid", label: "유료" },
+  { key: "free", label: "0원" },
+];
+
+/** 유료·0원 결제자의 결제 전 30일 탐색: 지표 비교표 + 결제 직전 단계 흐름. */
+function JourneySection({ journey, flow }: { journey: JourneySummary; flow: FlowSegment }) {
+  return (
+    <Section
+      title="결제 전 탐색 (결제자 한정)"
+      description="결제 전 30일 동안 같은 기기에서 본 페이지 기준 (Redash 480). 다른 기기에서 본 탐색은 잡히지 않습니다."
+    >
+      {!journey.ok ? (
+        <LoadError title="결제 전 탐색을 불러오지 못했습니다." message={journey.message} />
+      ) : (
+        <>
+          <JourneyTable segments={journey.segments} />
+          <Card className="mt-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">결제 직전 단계별 흐름</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  결제(주문) 페이지는 단계에서 빼고 맨 오른쪽 &lsquo;결제 완료&rsquo;로 모읍니다. 같은 종류 페이지가 이어지면 한 단계로
+                  셉니다. 열마다 상위 7개 외에는 &lsquo;그 외&rsquo;.
+                </p>
+              </div>
+              <nav className="flex shrink-0 rounded-lg border border-zinc-200 p-0.5 text-sm" aria-label="결제 구분">
+                {FLOW_TABS.map((t) => (
+                  <Link
+                    key={t.key}
+                    href={t.key === "all" ? "?" : `?flow=${t.key}`}
+                    scroll={false}
+                    className={`rounded-md px-3 py-1 ${
+                      flow === t.key ? "bg-zinc-900 font-medium text-white" : "text-zinc-600 hover:bg-zinc-100"
+                    }`}
+                  >
+                    {t.label} {journey.flows[t.key].total}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <div className="mt-4">
+              <StepFlow data={journey.flows[flow]} headers={["-3단계", "-2단계", "-1단계", "결제"]} />
+            </div>
+            <p className="mt-3 text-xs text-zinc-500">탐색 {formatTime(journey.retrievedAt)} 갱신</p>
+          </Card>
+        </>
+      )}
+    </Section>
+  );
+}
+
+function JourneyTable({ segments }: { segments: JourneySegment[] }) {
+  const rows: { label: string; value: (s: JourneySegment) => string }[] = [
+    { label: "결제 수 (탐색 기록 있음)", value: (s) => `${s.n}건` },
+    ...["첫 방문에 결제", "당일 재방문 후 결제", "여러 날 재방문 후 결제"].map((t) => ({
+      label: t,
+      value: (s: JourneySegment) => share(s.types.find((x) => x.label === t)?.count ?? 0, s.n),
+    })),
+    { label: "첫 탐색 → 결제 (중앙값)", value: (s) => fmt(s.median.daysToPurchase, "일", 1) },
+    { label: "방문 세션 / 방문 일수 (중앙값)", value: (s) => `${fmt(s.median.sessions, "회", 1)} / ${fmt(s.median.visitDays, "일", 1)}` },
+    { label: "페이지뷰 (중앙값)", value: (s) => fmt(s.median.pageViews, "", 1) },
+    { label: "멘토링 상세 조회 (중앙값)", value: (s) => fmt(s.median.detailViews, "회", 1) },
+    { label: "본 멘토링 상세 수 (중앙값)", value: (s) => fmt(s.median.distinctDetails, "개", 1) },
+    { label: "결제 페이지 재진입 (2세션 이상)", value: (s) => share(s.checkoutRetry, s.n) },
+    { label: "멘토링 목록 방문", value: (s) => share(s.visited.catalog, s.n) },
+    { label: "대기업 멘토관 방문", value: (s) => share(s.visited.bigfirm, s.n) },
+    { label: "쿠폰 페이지 방문", value: (s) => share(s.visited.coupon, s.n) },
+    { label: "다른 프로그램 방문", value: (s) => share(s.visited.otherPrograms, s.n) },
+  ];
+  return (
+    <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
+          <tr>
+            <th className="px-4 py-3 font-medium">지표</th>
+            {segments.map((s) => (
+              <th key={s.label} className="whitespace-nowrap px-4 py-3 text-right font-medium">
+                {s.label} 결제자
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {rows.map((r) => (
+            <tr key={r.label}>
+              <td className="px-4 py-2.5 text-zinc-700">{r.label}</td>
+              {segments.map((s) => (
+                <td key={s.label} className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-zinc-900">
+                  {r.value(s)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

@@ -37,6 +37,12 @@ export const INFLOW_QUERY: RedashQuery = {
   keyEnv: "REDASH_INFLOW_API_KEY",
 };
 
+/** 쿼리 480. GA4 기준 1:1 LIVE 멘토링 결제자의 결제 전 30일 사이트 탐색. 479 와 주문번호로 합친다. */
+export const JOURNEY_QUERY: RedashQuery = {
+  idEnv: "REDASH_JOURNEY_QUERY_ID",
+  keyEnv: "REDASH_JOURNEY_API_KEY",
+};
+
 const TIMEOUT_MS = 15_000;
 
 type RedashResponse = {
