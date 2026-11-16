@@ -1,10 +1,6 @@
-import { PageHeader, UnderConstruction } from "@/components/ui";
+import { redirect } from "next/navigation";
 
+// 대시보드는 하위 페이지로 구성되므로 첫 하위 페이지로 보낸다
 export default function DashboardPage() {
-  return (
-    <>
-      <PageHeader title="대시보드" description="1:1 LIVE 멘토링 운영 현황과 판단에 쓰이는 지표를 다룹니다." />
-      <UnderConstruction />
-    </>
-  );
+  redirect("/dashboard/supply");
 }

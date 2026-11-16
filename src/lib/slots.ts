@@ -31,7 +31,7 @@ const AVAILABLE = "예약가능";
 const str = (v: RedashRow[string]) => (v === null || v === undefined || v === "" ? null : String(v));
 
 /** 지금 KST 를 "YYYY-MM-DD HH:mm" 로. 쿼리의 `시점` 은 쿼리가 돈 시각 기준이라 직접 다시 판단한다. */
-function nowKst(): string {
+export function nowKst(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",

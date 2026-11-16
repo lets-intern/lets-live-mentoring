@@ -25,6 +25,18 @@ export const SLOTS_QUERY: RedashQuery = {
   keyEnv: "REDASH_SLOTS_API_KEY",
 };
 
+/** 쿼리 348. 1:1 LIVE 멘토링 예약(신청 단위). 연락처 등 개인정보가 섞여 있어 서버에서 집계만 한다. */
+export const BOOKINGS_QUERY: RedashQuery = {
+  idEnv: "REDASH_BOOKINGS_QUERY_ID",
+  keyEnv: "REDASH_BOOKINGS_API_KEY",
+};
+
+/** 쿼리 479. GA4 기준 1:1 LIVE 멘토링 결제별 유입채널·사이트 내 경로. */
+export const INFLOW_QUERY: RedashQuery = {
+  idEnv: "REDASH_INFLOW_QUERY_ID",
+  keyEnv: "REDASH_INFLOW_API_KEY",
+};
+
 const TIMEOUT_MS = 15_000;
 
 type RedashResponse = {

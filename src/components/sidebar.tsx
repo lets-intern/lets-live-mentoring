@@ -11,7 +11,17 @@ type NavItem =
   | { type: "group"; label: string; icon: IconName; children: NavChild[] };
 
 const NAV: NavItem[] = [
-  { type: "link", href: "/", label: "대시보드", icon: "dashboard" },
+  {
+    type: "group",
+    label: "대시보드",
+    icon: "dashboard",
+    children: [
+      { href: "/dashboard/supply", label: "공급 관리" },
+      { href: "/dashboard/demand", label: "수요 관리" },
+      { href: "/dashboard/conversion", label: "전환 관리" },
+      { href: "/dashboard/quality", label: "품질 관리" },
+    ],
+  },
   {
     type: "group",
     label: "멘토링 운영",
